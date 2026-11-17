@@ -1,0 +1,1294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Word Sound Safari - EFL Listening Game</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Balsamiq+Sans:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        /* ==========================================================================
+           1. CSS VARIABLES, FONTS & RESET
+           ========================================================================== */
+        @font-face {
+            font-family: 'Balsamiq Sans';
+            src: local('Balsamiq Sans Regular'), local('BalsamiqSans-Regular'), url('BalsamiqSans-Regular.ttf') format('truetype');
+            font-weight: 400;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        @font-face {
+            font-family: 'Balsamiq Sans';
+            src: local('Balsamiq Sans Bold'), local('BalsamiqSans-Bold'), url('BalsamiqSans-Bold.ttf') format('truetype');
+            font-weight: 700;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        :root {
+            /* Primary Font: Balsamiq Sans with playful offline rounded fallbacks */
+            --font-main: 'Balsamiq Sans', 'Comic Sans MS', 'Chalkboard SE', 'Marker Felt', 'Trebuchet MS', sans-serif;
+            
+            /* Child-Friendly High-Contrast Palette */
+            --color-primary: #FF6B35;
+            --color-primary-shadow: #C84616;
+            --color-secondary: #2EC4B6;
+            --color-secondary-shadow: #1D8A80;
+            --color-accent: #FFBE0B;
+            --color-accent-shadow: #C79100;
+            
+            /* Answer Box Colors */
+            --box-left-bg: #FFFFFF;
+            --box-left-border: #3A86FF;
+            --box-left-shadow: #225BB8;
+            
+            --box-right-bg: #FFFFFF;
+            --box-right-border: #8338EC;
+            --box-right-shadow: #571CB0;
+
+            /* Feedback Colors */
+            --color-correct-bg: #2EC4B6;
+            --color-correct-border: #1B7A70;
+            --color-wrong-bg: #FF4D6D;
+            --color-wrong-border: #B81D3A;
+
+            /* UI Surfaces */
+            --surface-glass: rgba(255, 255, 255, 0.92);
+            --surface-border: #FFFFFF;
+            --text-dark: #1D2D44;
+            --text-light: #FFFFFF;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: var(--font-main);
+            background-color: #1D2D44;
+            color: var(--text-dark);
+        }
+
+        button, input, select, textarea, h1, h2, p, span, div {
+            font-family: var(--font-main);
+        }
+
+        /* ==========================================================================
+           2. SCREEN CONTAINERS & BACKGROUNDS
+           ========================================================================== */
+        .screen {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: clamp(12px, 2.5vw, 32px);
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+
+        .screen.hidden {
+            opacity: 0;
+            pointer-events: none;
+            visibility: hidden;
+            z-index: -1;
+        }
+
+        /* Home Screen Background with fallback gradient if image is missing */
+        #home-screen {
+            background-image: 
+                radial-gradient(circle at center, rgba(255,255,255,0.1) 0%, rgba(0,0,0,0.25) 100%),
+                url('homescreen.png'),
+                linear-gradient(135deg, #4CC9F0 0%, #4361EE 100%);
+        }
+
+        /* Game & Game Over Screen Background with fallback gradient */
+        #game-screen, #gameover-screen {
+            background-image: 
+                radial-gradient(circle at center, rgba(255,255,255,0.08) 0%, rgba(0,0,0,0.2) 100%),
+                url('gamescreen.png'),
+                linear-gradient(135deg, #FFD166 0%, #06D6A0 100%);
+        }
+
+        /* ==========================================================================
+           3. SHARED BUTTONS & CONTROLS (SMARTBOARD SIZED)
+           ========================================================================== */
+        .btn-chunky {
+            font-family: var(--font-main);
+            font-weight: 800;
+            border: 4px solid #FFFFFF;
+            border-radius: 32px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            transition: transform 0.1s ease, box-shadow 0.1s ease, filter 0.15s ease;
+            text-decoration: none;
+        }
+
+        .btn-chunky:hover {
+            filter: brightness(1.05);
+        }
+
+        .btn-chunky:active {
+            transform: translateY(6px);
+        }
+
+        .btn-start {
+            background-color: var(--color-primary);
+            color: var(--text-light);
+            font-size: clamp(2rem, 4.5vw, 3.5rem);
+            padding: clamp(18px, 3vh, 28px) clamp(44px, 7vw, 84px);
+            box-shadow: 0 10px 0 var(--color-primary-shadow), 0 16px 28px rgba(0, 0, 0, 0.3);
+        }
+
+        .btn-start:active {
+            box-shadow: 0 4px 0 var(--color-primary-shadow), 0 8px 14px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Fullscreen Button - Accessible on all screens */
+        .btn-fullscreen {
+            position: fixed;
+            top: clamp(12px, 2vh, 22px);
+            right: clamp(12px, 2vw, 24px);
+            z-index: 100;
+            width: clamp(58px, 6.5vw, 76px);
+            height: clamp(58px, 6.5vw, 76px);
+            border-radius: 22px;
+            background-color: var(--surface-glass);
+            border: 4px solid #3A86FF;
+            color: #1D2D44;
+            box-shadow: 0 6px 0 #225BB8, 0 10px 20px rgba(0, 0, 0, 0.25);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.1s ease, box-shadow 0.1s ease;
+        }
+
+        .btn-fullscreen:active {
+            transform: translateY(4px);
+            box-shadow: 0 2px 0 #225BB8, 0 4px 10px rgba(0, 0, 0, 0.25);
+        }
+
+        .btn-fullscreen svg {
+            width: 55%;
+            height: 55%;
+            stroke-width: 2.8;
+        }
+
+        /* ==========================================================================
+           4. HOME SCREEN LAYOUT
+           ========================================================================== */
+        .home-card {
+            background: var(--surface-glass);
+            border: 6px solid var(--surface-border);
+            border-radius: 40px;
+            padding: clamp(28px, 5vh, 52px) clamp(28px, 6vw, 68px);
+            max-width: 820px;
+            width: 92%;
+            text-align: center;
+            box-shadow: 0 18px 40px rgba(0, 0, 0, 0.32);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: clamp(18px, 3vh, 30px);
+            animation: floatIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .game-title {
+            font-size: clamp(2.6rem, 6.5vw, 5rem);
+            font-weight: 900;
+            color: #FF6B35;
+            line-height: 1.08;
+            text-shadow: 3px 3px 0px #FFE66D, 5px 5px 0px rgba(29, 45, 68, 0.18);
+            letter-spacing: 1px;
+        }
+
+        .game-subtitle {
+            font-size: clamp(1.25rem, 2.6vw, 1.9rem);
+            font-weight: 700;
+            color: var(--text-dark);
+            line-height: 1.4;
+            max-width: 620px;
+            background: #F0F7FF;
+            padding: 16px 26px;
+            border-radius: 24px;
+            border: 3px dashed #3A86FF;
+        }
+
+        /* ==========================================================================
+           5. GAMEPLAY HUD & ARENA LAYOUT
+           ========================================================================== */
+        #game-screen {
+            justify-content: space-between;
+            padding-top: clamp(12px, 2vh, 22px);
+            padding-bottom: clamp(16px, 3vh, 32px);
+        }
+
+        /* Top HUD Bar */
+        .hud-bar {
+            width: 100%;
+            max-width: 1200px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: clamp(14px, 3vw, 40px);
+            padding-right: clamp(68px, 8vw, 92px); /* Space for fullscreen button */
+            z-index: 10;
+        }
+
+        .hud-pill {
+            background: var(--surface-glass);
+            border: 5px solid #FFFFFF;
+            border-radius: 28px;
+            padding: clamp(10px, 1.6vh, 16px) clamp(22px, 3.5vw, 38px);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 8px 0 rgba(29, 45, 68, 0.25), 0 12px 24px rgba(0, 0, 0, 0.2);
+            min-width: clamp(170px, 24vw, 260px);
+            justify-content: center;
+        }
+
+        .hud-pill.score-pill {
+            border-color: var(--color-accent);
+        }
+
+        .hud-pill.timer-pill {
+            border-color: var(--color-secondary);
+        }
+
+        .hud-pill.timer-pill.warning {
+            border-color: #FF4D6D;
+            background-color: #FFF0F3;
+            animation: pulseUrgent 0.6s infinite alternate;
+        }
+
+        .hud-label {
+            font-size: clamp(1.2rem, 2.2vw, 1.7rem);
+            font-weight: 800;
+            color: #4A5568;
+            text-transform: uppercase;
+        }
+
+        .hud-value {
+            font-size: clamp(1.8rem, 3.5vw, 2.8rem);
+            font-weight: 900;
+            color: var(--text-dark);
+            min-width: 2.2ch;
+            text-align: center;
+        }
+
+        /* Center Audio & Feedback Area */
+        .audio-control-zone {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: clamp(10px, 1.8vh, 18px);
+            margin: auto 0;
+            z-index: 10;
+        }
+
+        .btn-replay {
+            font-family: var(--font-main);
+            background-color: var(--color-accent);
+            color: var(--text-dark);
+            border: 6px solid #FFFFFF;
+            border-radius: 999px;
+            padding: clamp(14px, 2.4vh, 24px) clamp(32px, 5vw, 56px);
+            font-size: clamp(1.5rem, 3vw, 2.4rem);
+            font-weight: 900;
+            box-shadow: 0 10px 0 var(--color-accent-shadow), 0 16px 28px rgba(0, 0, 0, 0.28);
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 14px;
+            transition: transform 0.1s ease, box-shadow 0.1s ease;
+        }
+
+        .btn-replay:active {
+            transform: translateY(6px);
+            box-shadow: 0 4px 0 var(--color-accent-shadow), 0 8px 14px rgba(0, 0, 0, 0.28);
+        }
+
+        .btn-replay.speaking {
+            animation: speakerPulse 0.45s ease-in-out infinite alternate;
+            background-color: #FFD166;
+        }
+
+        .btn-replay svg {
+            width: clamp(32px, 4vw, 48px);
+            height: clamp(32px, 4vw, 48px);
+        }
+
+        /* Feedback Banner */
+        .feedback-banner {
+            min-height: clamp(54px, 7vh, 72px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 8px 32px;
+            border-radius: 24px;
+            font-size: clamp(1.6rem, 3.2vw, 2.5rem);
+            font-weight: 900;
+            opacity: 0;
+            transform: scale(0.85);
+            transition: opacity 0.2s ease, transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            pointer-events: none;
+            text-align: center;
+        }
+
+        .feedback-banner.visible {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        .feedback-banner.correct {
+            background-color: var(--color-correct-bg);
+            color: #FFFFFF;
+            border: 4px solid #FFFFFF;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+        }
+
+        .feedback-banner.incorrect {
+            background-color: var(--color-wrong-bg);
+            color: #FFFFFF;
+            border: 4px solid #FFFFFF;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+        }
+
+        /* Two Large Answer Boxes Container */
+        .answers-container {
+            width: 100%;
+            max-width: 1280px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: clamp(20px, 4.5vw, 64px);
+            padding: 0 clamp(10px, 2vw, 24px);
+            margin-bottom: auto;
+            z-index: 10;
+        }
+
+        .answer-box {
+            width: 100%;
+            height: clamp(170px, 32vh, 300px);
+            border-radius: 40px;
+            border: 8px solid var(--box-left-border);
+            background-color: var(--box-left-bg);
+            box-shadow: 0 14px 0 var(--box-left-shadow), 0 22px 35px rgba(0, 0, 0, 0.28);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            cursor: pointer;
+            transition: transform 0.12s ease, background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.12s ease;
+            overflow: hidden;
+        }
+
+        /* High-contrast visual distinction between Left and Right choices */
+        #answer-left {
+            background-color: #FFFFFF;
+            border-color: #3A86FF;
+            box-shadow: 0 14px 0 #225BB8, 0 22px 35px rgba(0, 0, 0, 0.28);
+        }
+
+        #answer-right {
+            background-color: #FFFDF5;
+            border-color: #8338EC;
+            box-shadow: 0 14px 0 #571CB0, 0 22px 35px rgba(0, 0, 0, 0.28);
+        }
+
+        .answer-box:hover:not(:disabled) {
+            transform: translateY(-4px);
+        }
+
+        .answer-box:active:not(:disabled) {
+            transform: translateY(8px);
+        }
+
+        .answer-word {
+            font-family: var(--font-main);
+            /* Large, bold font sized carefully so 3-4 letter words fit comfortably with zero overflow */
+            font-size: clamp(4.2rem, 11vw, 8.5rem);
+            font-weight: 900;
+            color: var(--text-dark);
+            line-height: 1;
+            white-space: nowrap;
+            text-align: center;
+            max-width: 100%;
+        }
+
+        /* Answer Feedback States */
+        .answer-box.state-correct {
+            background-color: var(--color-correct-bg) !important;
+            border-color: #FFFFFF !important;
+            box-shadow: 0 14px 0 var(--color-correct-border), 0 22px 35px rgba(0, 0, 0, 0.3) !important;
+            animation: bouncePop 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .answer-box.state-correct .answer-word {
+            color: #FFFFFF;
+        }
+
+        .answer-box.state-incorrect {
+            background-color: var(--color-wrong-bg) !important;
+            border-color: #FFFFFF !important;
+            box-shadow: 0 14px 0 var(--color-wrong-border), 0 22px 35px rgba(0, 0, 0, 0.3) !important;
+            animation: shakeHorizontal 0.42s ease-in-out;
+        }
+
+        .answer-box.state-incorrect .answer-word {
+            color: #FFFFFF;
+        }
+
+        /* ==========================================================================
+           6. GAME OVER SCREEN
+           ========================================================================== */
+        .gameover-card {
+            background: var(--surface-glass);
+            border: 6px solid #FFFFFF;
+            border-radius: 44px;
+            padding: clamp(30px, 5vh, 56px) clamp(28px, 6vw, 72px);
+            max-width: 760px;
+            width: 92%;
+            text-align: center;
+            box-shadow: 0 20px 48px rgba(0, 0, 0, 0.35);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: clamp(18px, 3vh, 30px);
+            animation: floatIn 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .gameover-title {
+            font-size: clamp(2.8rem, 6.5vw, 4.8rem);
+            font-weight: 900;
+            color: #FF6B35;
+            text-shadow: 3px 3px 0 #FFE66D;
+        }
+
+        .final-score-box {
+            background: #F0F7FF;
+            border: 5px solid #3A86FF;
+            border-radius: 32px;
+            padding: 18px 44px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .final-score-label {
+            font-size: clamp(1.3rem, 2.5vw, 1.8rem);
+            font-weight: 800;
+            color: #4A5568;
+            text-transform: uppercase;
+        }
+
+        .final-score-number {
+            font-size: clamp(3.5rem, 8vw, 6rem);
+            font-weight: 900;
+            color: #2EC4B6;
+            line-height: 1;
+            text-shadow: 2px 2px 0 rgba(29, 45, 68, 0.15);
+        }
+
+        .btn-play-again {
+            background-color: var(--color-secondary);
+            color: var(--text-light);
+            font-size: clamp(1.9rem, 4vw, 3.1rem);
+            padding: clamp(16px, 2.8vh, 26px) clamp(40px, 6vw, 76px);
+            box-shadow: 0 10px 0 var(--color-secondary-shadow), 0 16px 28px rgba(0, 0, 0, 0.3);
+        }
+
+        .btn-play-again:active {
+            box-shadow: 0 4px 0 var(--color-secondary-shadow), 0 8px 14px rgba(0, 0, 0, 0.3);
+        }
+
+        /* ==========================================================================
+           7. KEYFRAME ANIMATIONS & RESPONSIVE ADJUSTMENTS
+           ========================================================================== */
+        @keyframes floatIn {
+            0% { opacity: 0; transform: scale(0.88) translateY(20px); }
+            100% { opacity: 1; transform: scale(1) translateY(0); }
+        }
+
+        @keyframes bouncePop {
+            0% { transform: scale(1); }
+            40% { transform: scale(1.07); }
+            70% { transform: scale(0.98); }
+            100% { transform: scale(1); }
+        }
+
+        @keyframes shakeHorizontal {
+            0%, 100% { transform: translateX(0); }
+            20% { transform: translateX(-14px); }
+            40% { transform: translateX(14px); }
+            60% { transform: translateX(-10px); }
+            80% { transform: translateX(10px); }
+        }
+
+        @keyframes speakerPulse {
+            0% { transform: scale(1); }
+            100% { transform: scale(1.06); }
+        }
+
+        @keyframes pulseUrgent {
+            0% { transform: scale(1); }
+            100% { transform: scale(1.05); }
+        }
+
+        /* Portrait Tablets / Narrower Screens */
+        @media (max-width: 720px) {
+            .hud-bar {
+                justify-content: flex-start;
+                gap: 10px;
+            }
+            .hud-pill {
+                min-width: 130px;
+                padding: 10px 16px;
+            }
+            .answers-container {
+                grid-template-columns: 1fr;
+                gap: 18px;
+            }
+            .answer-box {
+                height: clamp(135px, 22vh, 190px);
+            }
+            .answer-word {
+                font-size: clamp(3.6rem, 14vw, 5.5rem);
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ======================================================================
+         FULLSCREEN TOGGLE BUTTON (ACCESSIBLE AT ALL TIMES)
+         ====================================================================== -->
+    <button id="btn-fullscreen" class="btn-fullscreen" type="button" aria-label="Toggle Fullscreen" title="Fullscreen">
+        <svg id="icon-expand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="15 3 21 3 21 9"></polyline>
+            <polyline points="9 21 3 21 3 15"></polyline>
+            <line x1="21" y1="3" x2="14" y2="10"></line>
+            <line x1="3" y1="21" x2="10" y2="14"></line>
+        </svg>
+        <svg id="icon-compress" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="display: none;">
+            <polyline points="4 14 10 14 10 20"></polyline>
+            <polyline points="20 10 14 10 14 4"></polyline>
+            <line x1="14" y1="10" x2="21" y2="3"></line>
+            <line x1="3" y1="21" x2="10" y2="14"></line>
+        </svg>
+    </button>
+
+    <!-- ======================================================================
+         1. HOME SCREEN
+         ====================================================================== -->
+    <main id="home-screen" class="screen">
+        <div class="home-card">
+            <h1 class="game-title">Word Sound Safari</h1>
+            <p class="game-subtitle">
+                Listen carefully to each English word, then tap the matching word on the board!
+            </p>
+            <button id="btn-start" class="btn-chunky btn-start" type="button">
+                START
+            </button>
+        </div>
+    </main>
+
+    <!-- ======================================================================
+         2. GAMEPLAY SCREEN
+         ====================================================================== -->
+    <section id="game-screen" class="screen hidden" aria-live="polite">
+        <!-- Top Heads-Up Display -->
+        <header class="hud-bar">
+            <div class="hud-pill score-pill">
+                <span class="hud-label">Score:</span>
+                <span id="hud-score" class="hud-value">0</span>
+            </div>
+            <div id="timer-pill" class="hud-pill timer-pill">
+                <span class="hud-label">Time:</span>
+                <span id="hud-timer" class="hud-value">60</span>
+            </div>
+        </header>
+
+        <!-- Center Replay Audio Button & Feedback Message -->
+        <div class="audio-control-zone">
+            <button id="btn-replay" class="btn-replay" type="button" aria-label="Listen Again">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                    <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+                </svg>
+                <span>Listen</span>
+            </button>
+            <div id="feedback-banner" class="feedback-banner" role="status"></div>
+        </div>
+
+        <!-- Two Large Answer Choice Boxes -->
+        <div class="answers-container">
+            <button id="answer-left" class="answer-box" type="button" data-side="left">
+                <span id="word-left" class="answer-word">---</span>
+            </button>
+            <button id="answer-right" class="answer-box" type="button" data-side="right">
+                <span id="word-right" class="answer-word">---</span>
+            </button>
+        </div>
+    </section>
+
+    <!-- ======================================================================
+         3. GAME OVER SCREEN
+         ====================================================================== -->
+    <section id="gameover-screen" class="screen hidden">
+        <div class="gameover-card">
+            <h2 class="gameover-title">Time's Up!</h2>
+            <div class="final-score-box">
+                <span class="final-score-label">Final Score</span>
+                <span id="final-score" class="final-score-number">0</span>
+            </div>
+            <button id="btn-play-again" class="btn-chunky btn-play-again" type="button">
+                Play Again
+            </button>
+        </div>
+    </section>
+
+    <!-- ======================================================================
+         4. GAME ENGINE & AUDIO CONTROLLER (JAVASCRIPT)
+         ====================================================================== -->
+    <script>
+        (function () {
+            'use strict';
+
+            /* ------------------------------------------------------------------
+               A. CONFIGURATION & VOCABULARY ASSETS
+               ------------------------------------------------------------------ */
+            const GAME_DURATION_SECONDS = 60;
+            const NEXT_QUESTION_DELAY_MS = 950;
+            const WRONG_FEEDBACK_DELAY_MS = 700;
+            const BGM_VOLUME = 0.10; // Strictly 10% volume
+
+            // Exact vocabulary list matching the required MP3 filenames
+            const VOCABULARY = [
+                { word: 'toe',  file: 'toe.mp3' },
+                { word: 'foe',  file: 'foe.mp3' },
+                { word: 'roe',  file: 'roe.mp3' },
+                { word: 'Joe',  file: 'Joe.mp3' },
+                { word: 'boat', file: 'boat.mp3' },
+                { word: 'road', file: 'road.mp3' },
+                { word: 'soap', file: 'soap.mp3' },
+                { word: 'goal', file: 'goal.mp3' }
+            ];
+
+            /* ------------------------------------------------------------------
+               B. APPLICATION STATE
+               ------------------------------------------------------------------ */
+            const state = {
+                currentScreen: 'home',
+                isGameActive: false,
+                isInputLocked: false,
+                score: 0,
+                timeLeft: GAME_DURATION_SECONDS,
+                timerIntervalId: null,
+                transitionTimeoutId: null,
+                currentTarget: null,
+                previousTargetWord: null,
+                wordPool: [],
+                recentPairs: [],
+                sideHistory: []
+            };
+
+            /* ------------------------------------------------------------------
+               C. DOM ELEMENT REFERENCES
+               ------------------------------------------------------------------ */
+            const dom = {
+                homeScreen: document.getElementById('home-screen'),
+                gameScreen: document.getElementById('game-screen'),
+                gameoverScreen: document.getElementById('gameover-screen'),
+                btnStart: document.getElementById('btn-start'),
+                btnPlayAgain: document.getElementById('btn-play-again'),
+                btnReplay: document.getElementById('btn-replay'),
+                btnFullscreen: document.getElementById('btn-fullscreen'),
+                iconExpand: document.getElementById('icon-expand'),
+                iconCompress: document.getElementById('icon-compress'),
+                hudScore: document.getElementById('hud-score'),
+                hudTimer: document.getElementById('hud-timer'),
+                timerPill: document.getElementById('timer-pill'),
+                feedbackBanner: document.getElementById('feedback-banner'),
+                answerLeft: document.getElementById('answer-left'),
+                answerRight: document.getElementById('answer-right'),
+                wordLeft: document.getElementById('word-left'),
+                wordRight: document.getElementById('word-right'),
+                finalScore: document.getElementById('final-score')
+            };
+
+            /* ------------------------------------------------------------------
+               D. AUDIO MANAGER (PRELOADED MP3s + WEB AUDIO API SFX & BGM)
+               ------------------------------------------------------------------ */
+            const AudioManager = {
+                vocabAudioMap: {},
+                currentVocabAudio: null,
+                audioCtx: null,
+                bgmIntervalId: null,
+                bgmStep: 0,
+                isBgmPlaying: false,
+
+                /**
+                 * Preload all 8 vocabulary MP3 files to eliminate playback lag
+                 * and handle missing/errored files gracefully.
+                 */
+                preloadVocabulary() {
+                    VOCABULARY.forEach(item => {
+                        try {
+                            const audio = new Audio();
+                            audio.src = item.file;
+                            audio.preload = 'auto';
+                            audio.volume = 1.0;
+                            audio.addEventListener('error', () => {
+                                console.warn(`Audio file could not be loaded: ${item.file}`);
+                            });
+                            audio.load();
+                            this.vocabAudioMap[item.word] = audio;
+                        } catch (err) {
+                            console.warn(`Failed to initialize audio for ${item.word}:`, err);
+                        }
+                    });
+                },
+
+                /**
+                 * Lazily initialize or resume the Web Audio API context on user gesture.
+                 */
+                ensureAudioContext() {
+                    try {
+                        if (!this.audioCtx) {
+                            const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                            if (AudioContextClass) {
+                                this.audioCtx = new AudioContextClass();
+                            }
+                        }
+                        if (this.audioCtx && this.audioCtx.state === 'suspended') {
+                            this.audioCtx.resume();
+                        }
+                    } catch (err) {
+                        console.warn('Web Audio API unavailable:', err);
+                    }
+                },
+
+                /**
+                 * Stop any currently playing vocabulary pronunciation cleanly.
+                 */
+                stopVocabulary() {
+                    dom.btnReplay.classList.remove('speaking');
+                    if (this.currentVocabAudio) {
+                        try {
+                            this.currentVocabAudio.pause();
+                            this.currentVocabAudio.currentTime = 0;
+                        } catch (err) {
+                            // Ignore reset errors if media was not ready
+                        }
+                        this.currentVocabAudio = null;
+                    }
+                },
+
+                /**
+                 * Play the pronunciation MP3 for the given vocabulary word.
+                 */
+                playVocabulary(word) {
+                    if (!word) return;
+                    this.stopVocabulary();
+
+                    const audio = this.vocabAudioMap[word];
+                    if (!audio) return;
+
+                    this.currentVocabAudio = audio;
+                    dom.btnReplay.classList.add('speaking');
+
+                    audio.onended = () => {
+                        dom.btnReplay.classList.remove('speaking');
+                    };
+                    audio.onerror = () => {
+                        dom.btnReplay.classList.remove('speaking');
+                    };
+
+                    try {
+                        audio.currentTime = 0;
+                        const playPromise = audio.play();
+                        if (playPromise !== undefined) {
+                            playPromise.catch(err => {
+                                dom.btnReplay.classList.remove('speaking');
+                                console.warn(`Playback interrupted or blocked for ${word}:`, err);
+                            });
+                        }
+                    } catch (err) {
+                        dom.btnReplay.classList.remove('speaking');
+                    }
+                },
+
+                /**
+                 * Play a pleasant, cheerful ascending chime for correct answers.
+                 */
+                playCorrectChime() {
+                    this.ensureAudioContext();
+                    if (!this.audioCtx) return;
+
+                    try {
+                        const now = this.audioCtx.currentTime;
+                        const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+
+                        notes.forEach((freq, idx) => {
+                            const osc = this.audioCtx.createOscillator();
+                            const gain = this.audioCtx.createGain();
+                            osc.type = 'triangle';
+                            osc.frequency.setValueAtTime(freq, now + idx * 0.065);
+
+                            gain.gain.setValueAtTime(0.001, now + idx * 0.065);
+                            gain.gain.exponentialRampToValueAtTime(0.32, now + idx * 0.065 + 0.02);
+                            gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.065 + 0.28);
+
+                            osc.connect(gain);
+                            gain.connect(this.audioCtx.destination);
+
+                            osc.start(now + idx * 0.065);
+                            osc.stop(now + idx * 0.065 + 0.3);
+                        });
+                    } catch (err) {
+                        console.warn('Error playing chime:', err);
+                    }
+                },
+
+                /**
+                 * Play a short, gentle low buzzing sound for incorrect answers.
+                 */
+                playIncorrectBuzz() {
+                    this.ensureAudioContext();
+                    if (!this.audioCtx) return;
+
+                    try {
+                        const now = this.audioCtx.currentTime;
+                        const osc = this.audioCtx.createOscillator();
+                        const gain = this.audioCtx.createGain();
+
+                        osc.type = 'sawtooth';
+                        osc.frequency.setValueAtTime(165, now);
+                        osc.frequency.linearRampToValueAtTime(130, now + 0.24);
+
+                        gain.gain.setValueAtTime(0.001, now);
+                        gain.gain.exponentialRampToValueAtTime(0.22, now + 0.02);
+                        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.26);
+
+                        osc.connect(gain);
+                        gain.connect(this.audioCtx.destination);
+
+                        osc.start(now);
+                        osc.stop(now + 0.28);
+                    } catch (err) {
+                        console.warn('Error playing buzz:', err);
+                    }
+                },
+
+                /**
+                 * Start soft, playful looping background music at strictly 10% volume (0.10).
+                 */
+                startBackgroundMusic() {
+                    this.stopBackgroundMusic();
+                    this.ensureAudioContext();
+                    if (!this.audioCtx) return;
+
+                    this.isBgmPlaying = true;
+                    this.bgmStep = 0;
+
+                    // Cheerful, gentle marimba-style pentatonic loop
+                    const melody = [
+                        261.63, 329.63, 392.00, 329.63, // C4 E4 G4 E4
+                        293.66, 349.23, 440.00, 349.23, // D4 F4 A4 F4
+                        329.63, 392.00, 523.25, 392.00, // E4 G4 C5 G4
+                        293.66, 392.00, 329.63, 261.63  // D4 G4 E4 C4
+                    ];
+
+                    const playBeat = () => {
+                        if (!this.isBgmPlaying || !this.audioCtx) return;
+                        try {
+                            const now = this.audioCtx.currentTime;
+                            const freq = melody[this.bgmStep % melody.length];
+                            this.bgmStep++;
+
+                            const osc = this.audioCtx.createOscillator();
+                            const gain = this.audioCtx.createGain();
+
+                            osc.type = 'sine';
+                            osc.frequency.setValueAtTime(freq, now);
+
+                            // Peak gain capped at 0.10 (10% of maximum volume)
+                            gain.gain.setValueAtTime(0.0001, now);
+                            gain.gain.linearRampToValueAtTime(BGM_VOLUME, now + 0.03);
+                            gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.36);
+
+                            osc.connect(gain);
+                            gain.connect(this.audioCtx.destination);
+
+                            osc.start(now);
+                            osc.stop(now + 0.38);
+                        } catch (err) {
+                            // Ignore audio scheduling error
+                        }
+                    };
+
+                    playBeat();
+                    this.bgmIntervalId = setInterval(playBeat, 420);
+                },
+
+                /**
+                 * Stop looping background music immediately.
+                 */
+                stopBackgroundMusic() {
+                    this.isBgmPlaying = false;
+                    if (this.bgmIntervalId !== null) {
+                        clearInterval(this.bgmIntervalId);
+                        this.bgmIntervalId = null;
+                    }
+                }
+            };
+
+            /* ------------------------------------------------------------------
+               E. SCREEN MANAGEMENT & FULLSCREEN API
+               ------------------------------------------------------------------ */
+            function showScreen(screenName) {
+                state.currentScreen = screenName;
+                dom.homeScreen.classList.toggle('hidden', screenName !== 'home');
+                dom.gameScreen.classList.toggle('hidden', screenName !== 'game');
+                dom.gameoverScreen.classList.toggle('hidden', screenName !== 'gameover');
+            }
+
+            function toggleFullscreen() {
+                try {
+                    if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+                        const docEl = document.documentElement;
+                        if (docEl.requestFullscreen) {
+                            docEl.requestFullscreen();
+                        } else if (docEl.webkitRequestFullscreen) {
+                            docEl.webkitRequestFullscreen();
+                        }
+                    } else {
+                        if (document.exitFullscreen) {
+                            document.exitFullscreen();
+                        } else if (document.webkitExitFullscreen) {
+                            document.webkitExitFullscreen();
+                        }
+                    }
+                } catch (err) {
+                    console.warn('Fullscreen request failed:', err);
+                }
+            }
+
+            function updateFullscreenIcon() {
+                const isFullscreen = Boolean(document.fullscreenElement || document.webkitFullscreenElement);
+                dom.iconExpand.style.display = isFullscreen ? 'none' : 'block';
+                dom.iconCompress.style.display = isFullscreen ? 'block' : 'none';
+            }
+
+            /* ------------------------------------------------------------------
+               F. INTELLIGENT RANDOMIZATION & QUESTION GENERATION
+               ------------------------------------------------------------------ */
+            function shuffleArray(array) {
+                const copy = array.slice();
+                for (let i = copy.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [copy[i], copy[j]] = [copy[j], copy[i]];
+                }
+                return copy;
+            }
+
+            /**
+             * Refills the bag of 8 vocabulary words so every word gets a fair turn,
+             * while guaranteeing the first word of the new bag is never identical
+             * to the previous question's target word.
+             */
+            function refillWordPool() {
+                let shuffled = shuffleArray(VOCABULARY);
+                if (state.previousTargetWord && shuffled[0].word === state.previousTargetWord) {
+                    // Swap the first element with a random later element
+                    const swapIdx = 1 + Math.floor(Math.random() * (shuffled.length - 1));
+                    [shuffled[0], shuffled[swapIdx]] = [shuffled[swapIdx], shuffled[0]];
+                }
+                state.wordPool = shuffled;
+            }
+
+            /**
+             * Selects a distractor word that differs from the target and avoids
+             * repeating recent word pairs.
+             */
+            function pickDistractor(targetWord) {
+                const candidates = VOCABULARY.filter(item => item.word !== targetWord);
+                const nonRecentCandidates = candidates.filter(item => {
+                    const pairKey = [targetWord, item.word].sort().join('|');
+                    return !state.recentPairs.includes(pairKey);
+                });
+
+                const pool = nonRecentCandidates.length > 0 ? nonRecentCandidates : candidates;
+                const chosen = pool[Math.floor(Math.random() * pool.length)];
+
+                // Track the last 5 pairs to avoid repetitive combinations
+                const chosenPairKey = [targetWord, chosen.word].sort().join('|');
+                state.recentPairs.push(chosenPairKey);
+                if (state.recentPairs.length > 5) {
+                    state.recentPairs.shift();
+                }
+
+                return chosen;
+            }
+
+            /**
+             * Picks left or right placement randomly while preventing long predictable streaks
+             * (never places the correct answer on the same side more than twice in a row).
+             */
+            function pickCorrectSide() {
+                const len = state.sideHistory.length;
+                let side;
+                if (len >= 2 && state.sideHistory[len - 1] === state.sideHistory[len - 2]) {
+                    side = state.sideHistory[len - 1] === 'left' ? 'right' : 'left';
+                } else {
+                    side = Math.random() < 0.5 ? 'left' : 'right';
+                }
+                state.sideHistory.push(side);
+                if (state.sideHistory.length > 6) {
+                    state.sideHistory.shift();
+                }
+                return side;
+            }
+
+            /**
+             * Generates and renders the next question, then plays the target word audio.
+             */
+            function generateNextQuestion() {
+                if (!state.isGameActive) return;
+
+                if (state.wordPool.length === 0) {
+                    refillWordPool();
+                }
+
+                const targetItem = state.wordPool.shift();
+                state.currentTarget = targetItem;
+                state.previousTargetWord = targetItem.word;
+
+                const distractorItem = pickDistractor(targetItem.word);
+                const correctSide = pickCorrectSide();
+
+                // Reset visual states of boxes & banner
+                resetQuestionVisuals();
+
+                if (correctSide === 'left') {
+                    dom.wordLeft.textContent = targetItem.word;
+                    dom.wordRight.textContent = distractorItem.word;
+                } else {
+                    dom.wordLeft.textContent = distractorItem.word;
+                    dom.wordRight.textContent = targetItem.word;
+                }
+
+                state.isInputLocked = false;
+                AudioManager.playVocabulary(targetItem.word);
+            }
+
+            /* ------------------------------------------------------------------
+               G. FEEDBACK & ANSWER EVALUATION
+               ------------------------------------------------------------------ */
+            function resetQuestionVisuals() {
+                dom.answerLeft.classList.remove('state-correct', 'state-incorrect');
+                dom.answerRight.classList.remove('state-correct', 'state-incorrect');
+                dom.feedbackBanner.className = 'feedback-banner';
+                dom.feedbackBanner.textContent = '';
+            }
+
+            function showFeedbackMessage(text, type) {
+                dom.feedbackBanner.textContent = text;
+                dom.feedbackBanner.className = `feedback-banner visible ${type}`;
+            }
+
+            function handleAnswerSelection(side) {
+                // Ignore taps if round is over, input is locked during animation, or no question exists
+                if (!state.isGameActive || state.isInputLocked || !state.currentTarget) {
+                    return;
+                }
+
+                const selectedBox = side === 'left' ? dom.answerLeft : dom.answerRight;
+                const selectedWord = side === 'left' ? dom.wordLeft.textContent : dom.wordRight.textContent;
+                const isCorrect = selectedWord === state.currentTarget.word;
+
+                // Lock input immediately to prevent rapid multi-tapping
+                state.isInputLocked = true;
+
+                if (isCorrect) {
+                    // CORRECT ANSWER FLOW
+                    state.score += 1;
+                    updateScoreDisplay();
+
+                    selectedBox.classList.add('state-correct');
+                    const praiseMessages = ['Great job!', 'Correct!', 'Awesome!', 'Well done!'];
+                    const msg = praiseMessages[Math.floor(Math.random() * praiseMessages.length)];
+                    showFeedbackMessage(msg, 'correct');
+
+                    AudioManager.playCorrectChime();
+
+                    // Advance to next question after a short celebration delay
+                    clearTimeout(state.transitionTimeoutId);
+                    state.transitionTimeoutId = setTimeout(() => {
+                        if (state.isGameActive) {
+                            generateNextQuestion();
+                        }
+                    }, NEXT_QUESTION_DELAY_MS);
+                } else {
+                    // INCORRECT ANSWER FLOW (No points deducted, stay on same question)
+                    selectedBox.classList.add('state-incorrect');
+                    showFeedbackMessage('Try again!', 'incorrect');
+
+                    AudioManager.playIncorrectBuzz();
+
+                    // Re-enable input after brief shake animation so student can try again
+                    clearTimeout(state.transitionTimeoutId);
+                    state.transitionTimeoutId = setTimeout(() => {
+                        if (state.isGameActive) {
+                            selectedBox.classList.remove('state-incorrect');
+                            dom.feedbackBanner.classList.remove('visible');
+                            state.isInputLocked = false;
+                        }
+                    }, WRONG_FEEDBACK_DELAY_MS);
+                }
+            }
+
+            /* ------------------------------------------------------------------
+               H. HUD, TIMER & ROUND LIFECYCLE
+               ------------------------------------------------------------------ */
+            function updateScoreDisplay() {
+                dom.hudScore.textContent = String(state.score);
+            }
+
+            function updateTimerDisplay() {
+                dom.hudTimer.textContent = String(state.timeLeft);
+                dom.timerPill.classList.toggle('warning', state.timeLeft <= 10 && state.timeLeft > 0);
+            }
+
+            function clearAllTimers() {
+                if (state.timerIntervalId !== null) {
+                    clearInterval(state.timerIntervalId);
+                    state.timerIntervalId = null;
+                }
+                if (state.transitionTimeoutId !== null) {
+                    clearTimeout(state.transitionTimeoutId);
+                    state.transitionTimeoutId = null;
+                }
+            }
+
+            function startCountdownTimer() {
+                clearInterval(state.timerIntervalId);
+                state.timerIntervalId = setInterval(() => {
+                    if (!state.isGameActive) {
+                        clearInterval(state.timerIntervalId);
+                        state.timerIntervalId = null;
+                        return;
+                    }
+
+                    state.timeLeft -= 1;
+                    if (state.timeLeft < 0) {
+                        state.timeLeft = 0;
+                    }
+                    updateTimerDisplay();
+
+                    if (state.timeLeft <= 0) {
+                        endGameRound();
+                    }
+                }, 1000);
+            }
+
+            /**
+             * Initializes a completely fresh 60-second round.
+             */
+            function startNewGame() {
+                // Clean up any lingering timers or audio
+                clearAllTimers();
+                AudioManager.stopVocabulary();
+                AudioManager.stopBackgroundMusic();
+
+                // Reset game state
+                state.score = 0;
+                state.timeLeft = GAME_DURATION_SECONDS;
+                state.isGameActive = true;
+                state.isInputLocked = false;
+                state.currentTarget = null;
+                state.previousTargetWord = null;
+                state.wordPool = [];
+                state.recentPairs = [];
+                state.sideHistory = [];
+
+                // Update HUD
+                updateScoreDisplay();
+                updateTimerDisplay();
+                resetQuestionVisuals();
+
+                // Transition to gameplay screen and start audio + timer
+                showScreen('game');
+                AudioManager.startBackgroundMusic();
+                startCountdownTimer();
+                generateNextQuestion();
+            }
+
+            /**
+             * Immediately stops gameplay when the 60-second timer reaches zero.
+             */
+            function endGameRound() {
+                state.isGameActive = false;
+                state.isInputLocked = true;
+
+                clearAllTimers();
+                AudioManager.stopVocabulary();
+                AudioManager.stopBackgroundMusic();
+
+                dom.finalScore.textContent = String(state.score);
+                showScreen('gameover');
+            }
+
+            /* ------------------------------------------------------------------
+               I. EVENT LISTENERS & INITIALIZATION
+               ------------------------------------------------------------------ */
+            function bindEvents() {
+                dom.btnStart.addEventListener('click', startNewGame);
+                dom.btnPlayAgain.addEventListener('click', startNewGame);
+
+                dom.btnReplay.addEventListener('click', () => {
+                    if (state.isGameActive && state.currentTarget) {
+                        AudioManager.playVocabulary(state.currentTarget.word);
+                    }
+                });
+
+                dom.answerLeft.addEventListener('click', () => handleAnswerSelection('left'));
+                dom.answerRight.addEventListener('click', () => handleAnswerSelection('right'));
+
+                dom.btnFullscreen.addEventListener('click', toggleFullscreen);
+                document.addEventListener('fullscreenchange', updateFullscreenIcon);
+                document.addEventListener('webkitfullscreenchange', updateFullscreenIcon);
+            }
+
+            // Boot application
+            AudioManager.preloadVocabulary();
+            bindEvents();
+            showScreen('home');
+        })();
+    </script>
+</body>
+</html>
